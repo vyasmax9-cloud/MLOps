@@ -3,25 +3,16 @@ import joblib
 import pandas as pd
 from huggingface_hub import hf_hub_download
 
-# =========================
-# LOAD MODEL FROM HF
-# =========================
-model_path = hf_hub_download(
-    repo_id="vyasmax9/tourism-prediction",
-    filename="tourism_model_v1.joblib"   # ✅ FIX NAME (check exact file name in HF)
-)
-
+# Download and load the model
+model_path = hf_hub_download(repo_id="vyasmax9/tourism-prediction",filename="tourism_model_v1.joblib")
 model = joblib.load(model_path)
 
-# =========================
-# UI
-# =========================
-st.title("🌍 Tourism Package Prediction App")
-st.write("Predict whether a customer will purchase the Wellness Tourism Package")
+# Streamlit UI for Tourism Package Prediction
+st.title("Tourism Package Prediction App")
+st.write("""
+Predict whether a customer will purchase the Wellness Tourism Package""")
 
-# =========================
 # USER INPUTS
-# =========================
 age = st.number_input("Age", 18, 70, 30)
 income = st.number_input("Monthly Income", 1000, 200000, 50000)
 
@@ -36,13 +27,8 @@ productpitched = st.selectbox("Product Pitched", ["Basic", "Standard", "Deluxe",
 
 children = st.number_input("Number of Children Visiting", 0, 5, 0)
 
-# =========================
-# PREDICTION
-# =========================
-if st.button("Predict"):
-
-    # ✅ Create DataFrame (IMPORTANT)
-    input_df = pd.DataFrame([{
+# Create DataFrame (IMPORTANT)
+input_df = pd.DataFrame([{
         'Age': age,
         'NumberOfChildrenVisiting': children,
         'MonthlyIncome': income,
@@ -56,24 +42,27 @@ if st.button("Predict"):
         'ProductPitched': productpitched
     }])
 
-    # =========================
-    # MODEL PREDICTION
-    # =========================
+# MODEL PREDICTION
+if st.button("Predict"):
     prediction = model.predict(input_df)[0]
-
-    # If classifier
-    if hasattr(model, "predict_proba"):
-        prob = model.predict_proba(input_df)[0][1]
-    else:
-        prob = None
-
-    # =========================
-    # OUTPUT
-    # =========================
+    result = "Customer will purchase the Wellness Tourism Package" if prediction == 1 else "Customer will not purchase the Wellness Tourism Package"
+    st.success(result)
+    st.subheader("Prediction Probability")
+    prediction_proba = model.predict_proba(input_df)
+    st.write(prediction_proba)
     if prediction == 1:
-        st.success("✅ Likely to Purchase")
-    else:
-        st.error("❌ Not Likely to Purchase")
+      st.subheader("Prediction")
+      st.write(f"Prediction: {prediction}")
+      st.subheader("Prediction Probability")
+      st.write(f"Probability of Purchase: {prediction_proba[0][1]}")
 
-    if prob is not None:
-        st.write(f"Prediction Probability: {prob:.2f}")
+
+
+
+
+
+
+
+
+
+

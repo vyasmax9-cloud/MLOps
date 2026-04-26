@@ -10,9 +10,12 @@ from sklearn.preprocessing import LabelEncoder
 # for hugging face space authentication to upload files
 from huggingface_hub import login, HfApi
 
+# Log in to Hugging Face (important for accessing datasets)
+login(token=os.getenv("HF_TOKEN"))
+
 # Define constants for the dataset and output paths
 api = HfApi(token=os.getenv("HF_TOKEN"))
-DATASET_PATH = "vyasmax9/tourism-prediction.csv"
+DATASET_PATH = "hf://datasets/vyasmax9/tourism-prediction/tourism.csv"
 df = pd.read_csv(DATASET_PATH)
 print("Dataset loaded successfully.")
 
@@ -34,10 +37,10 @@ y = df[target]
 # Split the data into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-Xtrain.to_csv("Xtrain.csv",index=False)
-Xtest.to_csv("Xtest.csv",index=False)
-ytrain.to_csv("ytrain.csv",index=False)
-ytest.to_csv("ytest.csv",index=False)
+X_train.to_csv("Xtrain.csv",index=False)
+X_test.to_csv("Xtest.csv",index=False)
+y_train.to_csv("ytrain.csv",index=False)
+y_test.to_csv("ytest.csv",index=False)
 
 
 files = ["Xtrain.csv","Xtest.csv","ytrain.csv","ytest.csv"]
