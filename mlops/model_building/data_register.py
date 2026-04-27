@@ -32,4 +32,3 @@ api.upload_file(
     repo_id=repo_id,
     repo_type=repo_type,
 )
-

@@ -1,58 +1,46 @@
+# for data manipulation
 import pandas as pd
-import numpy as np # Added for consistency, though not strictly used in the final version below.
-import sklearn
-# for creating a folder
-import os
-# for data preprocessing and pipeline creation
-from sklearn.model_selection import GridSearchCV # GridSearchCV is imported, but train_test_split is not needed if loading pre-split data
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import make_column_transformer
 from sklearn.pipeline import make_pipeline
 # for model training, tuning, and evaluation
 import xgboost as xgb
+from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import accuracy_score, classification_report, recall_score
 # for model serialization
 import joblib
+# for creating a folder
+import os
 # for hugging face space authentication to upload files
 from huggingface_hub import login, HfApi, create_repo
-from huggingface_hub.utils import RepositoryNotFoundError # HfHubHTTPError was not used.
-
-# for MLflow tracking
+from huggingface_hub.utils import RepositoryNotFoundError, HfHubHTTPError
 import mlflow
 
-# Log in to Hugging Face (important for accessing datasets)
-login(token=os.getenv("HF_TOKEN"))
+# Use an environment variable for MLflow tracking URI, fallback to localhost
+mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000"))
+mlflow.set_experiment("mlops-training-experiment")
 
-# Initialize HfApi
-api = HfApi(token=os.getenv("HF_TOKEN")) # Ensure API is initialized with token for uploads too
+api = HfApi()
 
-# Define paths for pre-split data from Hugging Face datasets
 Xtrain_path = "hf://datasets/vyasmax9/tourism-prediction/Xtrain.csv"
 Xtest_path = "hf://datasets/vyasmax9/tourism-prediction/Xtest.csv"
 ytrain_path = "hf://datasets/vyasmax9/tourism-prediction/ytrain.csv"
 ytest_path = "hf://datasets/vyasmax9/tourism-prediction/ytest.csv"
 
-# Load the pre-split data
 Xtrain = pd.read_csv(Xtrain_path)
 Xtest = pd.read_csv(Xtest_path)
-ytrain = pd.read_csv(ytrain_path, header=None).squeeze() # Squeeze to convert single-column DataFrame to Series
-ytest = pd.read_csv(ytest_path, header=None).squeeze() # Squeeze to convert single-column DataFrame to Series
+ytrain = pd.read_csv(ytrain_path)['ProdTaken']
+ytest = pd.read_csv(ytest_path)['ProdTaken']
 
-print("Dataset split into Xtrain, Xtest, ytrain, ytest and loaded successfully.")
-
-# Define features (these should match the columns in Xtrain/Xtest)
+# Define features
 numeric_features =  ['Age', 'NumberOfPersonVisiting', 'NumberOfFollowups', 'DurationOfPitch', 'PitchSatisfactionScore']
 categorical_features = ['CustomerID', 'TypeofContact', 'Occupation', 'Gender', 'CityTier', 'MaritalStatus', 'PreferredPropertyStar', 'Designation']
 
 # Set the class weight to handle class imbalance
-# Check if ytrain is a Series or DataFrame, then apply value_counts
-if isinstance(ytrain, pd.Series):
-    class_weight = ytrain.value_counts()[0] / ytrain.value_counts()[1]
-else:
-    # Assuming it's a DataFrame with a single column, use iloc
-    class_weight = ytrain.iloc[:, 0].value_counts()[0] / ytrain.iloc[:, 0].value_counts()[1]
+class_weight = ytrain.value_counts()[0] / ytrain.value_counts()[1]
+class_weight
 
-# Define the preprocessing steps
+# Preprocessing pipeline
 preprocessor = make_column_transformer(
     (StandardScaler(), numeric_features),
     (OneHotEncoder(handle_unknown='ignore'), categorical_features)
@@ -63,17 +51,18 @@ xgb_model = xgb.XGBClassifier(scale_pos_weight=class_weight, random_state=42)
 
 # Define hyperparameter grid
 param_grid = {
-    'xgbclassifier__n_estimators': [50, 75, 100],
-    'xgbclassifier__max_depth': [2, 3, 4],
-    'xgbclassifier__colsample_bytree': [0.4, 0.5, 0.6],
-    'xgbclassifier__colsample_bylevel': [0.4, 0.5, 0.6],
-    'xgbclassifier__learning_rate': [0.01, 0.05, 0.1],
-    'xgbclassifier__reg_lambda': [0.4, 0.5, 0.6],
+    'xgbclassifier__n_estimators': [50, 75, 100, 125, 150],   # number of tree to build
+    'xgbclassifier__max_depth': [2, 3, 4],     # maximum depth of each tree
+    'xgbclassifier__learning_rate': [0.01, 0.05, 0.1],  # learning rate
+    'xgbclassifier__colsample_bytree': [0.4, 0.5, 0.6],   # percentage of attributes to be considered (randomly) for each tree
+    'xgbclassifier__colsample_bylevel': [0.4, 0.5, 0.6],   # percentage of attributes to be considered (randomly) for each level of tree
+    'xgbclassifier__reg_lambda': [0.4, 0.5, 0.6],      # L2 regularization factor
 }
 
 # Model pipeline
 model_pipeline = make_pipeline(preprocessor, xgb_model)
 
+# Start MLflow run
 with mlflow.start_run():
     # Hyperparameter tuning
     grid_search = GridSearchCV(model_pipeline, param_grid, cv=5, n_jobs=-1)
@@ -109,6 +98,7 @@ with mlflow.start_run():
     train_report = classification_report(ytrain, y_pred_train, output_dict=True)
     test_report = classification_report(ytest, y_pred_test, output_dict=True)
 
+    # Log the metrics for the best model
     mlflow.log_metrics({
         "train_accuracy": train_report['accuracy'],
         "train_precision": train_report['1']['precision'],
@@ -121,12 +111,19 @@ with mlflow.start_run():
     })
 
     # Save best model
-    model_filename = "tourism_prediction_model_v1.joblib"
-    joblib.dump(best_model, model_filename)
+    model_path = "tourism_prediction_model_v1.joblib"
+    joblib.dump(best_model, model_path)
+
+    # Log the model artifact
+    mlflow.log_artifact(model_path, artifact_path="model")
+    print(f"Model saved as artifact at: {model_path}")
+
 
     # Upload to Hugging Face
     repo_id = "vyasmax9/tourism-prediction"
     repo_type = "model"
+
+    api = HfApi(token=os.getenv("HF_TOKEN")) # Ensure token is passed here as well
 
     # Step 1: Check if the space exists
     try:
@@ -138,11 +135,11 @@ with mlflow.start_run():
         print(f"Model Space '{repo_id}' created.")
 
     api.upload_file(
-        path_or_fileobj=model_filename,
-        path_in_repo=model_filename,
+        path_or_fileobj=model_path, # Use model_path instead of hardcoded string
+        path_in_repo=model_path, # Use model_path instead of hardcoded string
         repo_id=repo_id,
         repo_type=repo_type,
         token=os.getenv("HF_TOKEN") # Pass token for upload
     )
 
-    print(f"Model '{model_filename}' uploaded to Hugging Face Hub successfully.")
+    print(f"Model '{model_path}' uploaded to Hugging Face Hub successfully.")
