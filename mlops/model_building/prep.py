@@ -15,7 +15,9 @@ login(token=os.getenv("HF_TOKEN"))
 
 # Define constants for the dataset and output paths
 api = HfApi(token=os.getenv("HF_TOKEN"))
-DATASET_PATH = "hf://datasets/vyasmax9/tourism-prediction/tourism.csv"
+repo_id = "vyasmax9/tourism-app"
+repo_type = "dataset"
+DATASET_PATH = f"hf://datasets/{repo_id}/tourism.csv"
 df = pd.read_csv(DATASET_PATH)
 print("Dataset loaded successfully.")
 
@@ -37,19 +39,20 @@ y = df[target]
 # Split the data into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-X_train.to_csv("Xtrain.csv",index=False)
-X_test.to_csv("Xtest.csv",index=False)
-y_train.to_csv("ytrain.csv",index=False)
-y_test.to_csv("ytest.csv",index=False)
+# Create the local directory to store prepared data
+local_prepared_data_folder = "tourism_project/data"
+os.makedirs(local_prepared_data_folder, exist_ok=True)
 
+# Save the split datasets into this local folder
+X_train.to_csv(os.path.join(local_prepared_data_folder, "Xtrain.csv"), index=False)
+X_test.to_csv(os.path.join(local_prepared_data_folder, "Xtest.csv"), index=False)
+y_train.to_csv(os.path.join(local_prepared_data_folder, "ytrain.csv"), index=False)
+y_test.to_csv(os.path.join(local_prepared_data_folder, "ytest.csv"), index=False)
 
-files = ["Xtrain.csv","Xtest.csv","ytrain.csv","ytest.csv"]
-
-for file_path in files:
-    api.upload_file(
-
-        path_or_fileobj="tourism_project/data",
-        path_in_repo=file_path.split("/")[-1],  # just the filename
-        repo_id="vyasmax9/tourism-prediction",
-        repo_type="dataset",
-    )
+# Upload the entire folder containing the prepared data
+api.upload_folder(
+    folder_path=local_prepared_data_folder,
+    repo_id=repo_id,
+    repo_type=repo_type,
+)
+print(f"Prepared data (Xtrain.csv, Xtest.csv, ytrain.csv, ytest.csv) uploaded to '{repo_id}'")
