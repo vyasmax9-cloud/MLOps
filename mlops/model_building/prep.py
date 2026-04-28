@@ -47,7 +47,8 @@ files = ["Xtrain.csv","Xtest.csv","ytrain.csv","ytest.csv"]
 
 for file_path in files:
     api.upload_file(
-        path_or_fileobj=file_path,
+
+        path_or_fileobj="tourism_project/data",
         path_in_repo=file_path.split("/")[-1],  # just the filename
         repo_id="vyasmax9/tourism-prediction",
         repo_type="dataset",
