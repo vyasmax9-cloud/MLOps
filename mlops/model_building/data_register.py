@@ -27,7 +27,7 @@ except RepositoryNotFoundError:
 
 # Upload the tourism.csv file
 api.upload_file(
-    path_or_fileobj=tourism_csv_local_path,
+    path_or_fileobj="tourism_project/data",  # local folder path
     path_in_repo="tourism.csv", # Name of the file within the Hugging Face dataset repo
     repo_id=repo_id,
     repo_type=repo_type,
