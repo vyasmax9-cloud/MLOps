@@ -3,7 +3,7 @@ from huggingface_hub import HfApi, create_repo
 import os
 
 
-repo_id = "vyasmax9/tourism-prediction"
+repo_id = "vyasmax9/tourism-app"
 repo_type = "dataset"
 
 # Initialize API client
@@ -26,9 +26,11 @@ except RepositoryNotFoundError:
     print(f"Space '{repo_id}' created.")
 
 # Upload the tourism.csv file
-api.upload_file(
-    path_or_fileobj="tourism_project/data",  # local folder path
-    path_in_repo="tourism.csv", # Name of the file within the Hugging Face dataset repo
+api.upload_folder(
+    folder_path="tourism_project/data",  # local folder path
     repo_id=repo_id,
     repo_type=repo_type,
 )
+print(f"tourism.csv uploaded to '{repo_id}'")
+
+
