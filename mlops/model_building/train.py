@@ -22,10 +22,10 @@ mlflow.set_experiment("mlops-training-experiment")
 
 api = HfApi()
 
-Xtrain_path = "hf://datasets/vyasmax9/tourism-prediction/Xtrain.csv"
-Xtest_path = "hf://datasets/vyasmax9/tourism-prediction/Xtest.csv"
-ytrain_path = "hf://datasets/vyasmax9/tourism-prediction/ytrain.csv"
-ytest_path = "hf://datasets/vyasmax9/tourism-prediction/ytest.csv"
+Xtrain_path = "hf://datasets/vyasmax9/tourism-app/Xtrain.csv"
+Xtest_path = "hf://datasets/vyasmax9/tourism-app/Xtest.csv"
+ytrain_path = "hf://datasets/vyasmax9/tourism-app/ytrain.csv"
+ytest_path = "hf://datasets/vyasmax9/tourism-app/ytest.csv"
 
 Xtrain = pd.read_csv(Xtrain_path)
 Xtest = pd.read_csv(Xtest_path)
@@ -120,7 +120,7 @@ with mlflow.start_run():
 
 
     # Upload to Hugging Face
-    repo_id = "vyasmax9/tourism-prediction"
+    repo_id = "vyasmax9/tourism-app"
     repo_type = "model"
 
     api = HfApi(token=os.getenv("HF_TOKEN")) # Ensure token is passed here as well
@@ -134,7 +134,7 @@ with mlflow.start_run():
         create_repo(repo_id=repo_id, repo_type=repo_type, private=False, token=os.getenv("HF_TOKEN")) # Pass token for creation
         print(f"Model Space '{repo_id}' created.")
 
-    api.upload_file(
+    api.upload_folder(
         path_or_fileobj=model_path, # Use model_path instead of hardcoded string
         path_in_repo=model_path, # Use model_path instead of hardcoded string
         repo_id=repo_id,
